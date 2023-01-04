@@ -223,6 +223,7 @@ TEST(ranges_test, range) {
   EXPECT_EQ(fmt::format("{}", z), "[0, 0, 0]");
 }
 
+#if FMT_USE_RETURN_TYPE_DEDUCTION
 enum test_enum { foo };
 auto format_as(test_enum e) -> int { return e; }
 
@@ -230,6 +231,7 @@ TEST(ranges_test, enum_range) {
   auto v = std::vector<test_enum>{test_enum::foo};
   EXPECT_EQ(fmt::format("{}", v), "[0]");
 }
+#endif
 
 #if !FMT_MSC_VERSION
 

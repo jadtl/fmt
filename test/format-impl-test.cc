@@ -382,6 +382,8 @@ struct double_double {
   auto operator-() const -> double_double { return double_double(-a, -b); }
 };
 
+auto format_as(double_double d) -> double { return d; }
+
 bool operator>=(const double_double& lhs, const double_double& rhs) {
   return lhs.a + lhs.b >= rhs.a + rhs.b;
 }
@@ -393,6 +395,8 @@ struct slow_float {
   operator float() const { return value; }
   auto operator-() const -> slow_float { return slow_float(-value); }
 };
+
+auto format_as(slow_float f) -> float { return f; }
 
 namespace std {
 template <> struct is_floating_point<double_double> : std::true_type {};
@@ -418,6 +422,7 @@ template <> struct float_info<slow_float> {
 }  // namespace detail
 FMT_END_NAMESPACE
 
+#if FMT_USE_RETURN_TYPE_DEDUCTION
 TEST(format_impl_test, write_double_double) {
   auto s = std::string();
   fmt::detail::write<char>(std::back_inserter(s), double_double(42), {});
@@ -431,6 +436,7 @@ TEST(format_impl_test, write_dragon_even) {
   // Specializing is_floating_point is broken in MSVC.
   if (!FMT_MSC_VERSION) EXPECT_EQ(s, "33554450");
 }
+#endif
 
 #ifdef _WIN32
 #  include <windows.h>

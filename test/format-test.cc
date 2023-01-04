@@ -533,6 +533,7 @@ TEST(format_test, many_args) {
                    format_error, "argument not found");
 }
 
+#if FMT_USE_RETURN_TYPE_DEDUCTION
 TEST(format_test, named_arg) {
   EXPECT_EQ("1/a/A", fmt::format("{_1}/{a_}/{A_}", fmt::arg("a_", 'a'),
                                  fmt::arg("A_", "A"), fmt::arg("_1", 1)));
@@ -552,6 +553,7 @@ TEST(format_test, named_arg) {
   EXPECT_THROW_MSG((void)fmt::format(runtime("{a}"), 42), format_error,
                    "argument not found");
 }
+#endif
 
 TEST(format_test, auto_arg_index) {
   EXPECT_EQ("abc", fmt::format("{}{}{}", 'a', 'b', 'c'));
@@ -1587,7 +1589,9 @@ using fmt::enums::format_as;
 
 TEST(format_test, format_enum_class) {
   EXPECT_EQ(fmt::format("{}", fmt::underlying(color::red)), "0");
+#if FMT_USE_RETURN_TYPE_DEDUCTION
   EXPECT_EQ(fmt::format("{}", test_ns::color::red), "0");
+#endif
 }
 
 TEST(format_test, format_string) {
@@ -1835,11 +1839,13 @@ TEST(format_test, join) {
   EXPECT_EQ("(1, 2, 3)", fmt::format("({})", join(v1, ", ")));
   EXPECT_EQ("(+01.20, +03.40)", fmt::format("({:+06.2f})", join(v2, ", ")));
 
+#if FMT_USE_RETURN_TYPE_DEDUCTION
   auto v4 = std::vector<test_enum>{foo, bar, foo};
   EXPECT_EQ("0 1 0", fmt::format("{}", join(v4, " ")));
+#endif
 }
 
-#ifdef __cpp_lib_byte
+#if defined(__cpp_lib_byte) && FMT_USE_RETURN_TYPE_DEDUCTION
 TEST(format_test, join_bytes) {
   auto v = std::vector<std::byte>{std::byte(1), std::byte(2), std::byte(3)};
   EXPECT_EQ(fmt::format("{}", fmt::join(v, ", ")), "1, 2, 3");
@@ -1928,7 +1934,7 @@ TEST(format_test, custom_format_compile_time_string) {
   EXPECT_EQ("42", fmt::format(FMT_STRING("{}"), const_answer));
 }
 
-#if FMT_USE_USER_DEFINED_LITERALS
+#if FMT_USE_USER_DEFINED_LITERALS && FMT_USE_RETURN_TYPE_DEDUCTION
 TEST(format_test, named_arg_udl) {
   using namespace fmt::literals;
   auto udl_a = fmt::format("{first}{second}{first}{third}", "first"_a = "abra",
@@ -1942,7 +1948,9 @@ TEST(format_test, named_arg_udl) {
 }
 #endif  // FMT_USE_USER_DEFINED_LITERALS
 
+#if FMT_USE_RETURN_TYPE_DEDUCTION
 TEST(format_test, enum) { EXPECT_EQ("0", fmt::format("{}", foo)); }
+#endif
 
 TEST(format_test, formatter_not_specialized) {
   static_assert(!fmt::has_formatter<fmt::formatter<test_enum>,
@@ -1950,7 +1958,7 @@ TEST(format_test, formatter_not_specialized) {
                 "");
 }
 
-#if FMT_HAS_FEATURE(cxx_strong_enums)
+#if FMT_HAS_FEATURE(cxx_strong_enums) && FMT_USE_RETURN_TYPE_DEDUCTION
 enum big_enum : unsigned long long { big_enum_value = 5000000000ULL };
 auto format_as(big_enum e) -> unsigned long long { return e; }
 
@@ -1982,16 +1990,13 @@ struct formatter<adl_test::fmt::detail::foo> : formatter<std::string> {
 };
 FMT_END_NAMESPACE
 
-struct convertible_to_int {
-  operator int() const { return 42; }
-};
-
 TEST(format_test, to_string) {
   EXPECT_EQ(fmt::to_string(42), "42");
   EXPECT_EQ(fmt::to_string(reinterpret_cast<void*>(0x1234)), "0x1234");
   EXPECT_EQ(fmt::to_string(adl_test::fmt::detail::foo()), "foo");
-  EXPECT_EQ(fmt::to_string(convertible_to_int()), "42");
+#if FMT_USE_RETURN_TYPE_DEDUCTION
   EXPECT_EQ(fmt::to_string(foo), "0");
+#endif
 
 #if FMT_USE_FLOAT128
   EXPECT_EQ(fmt::to_string(__float128(0.5)), "0.5");
@@ -2258,9 +2263,11 @@ TEST(format_test, format_facet_grouping) {
   EXPECT_EQ(fmt::format(loc, "{:L}", 1234567890), "1,234,567,89,0");
 }
 
+#  if FMT_USE_RETURN_TYPE_DEDUCTION
 TEST(format_test, format_named_arg_with_locale) {
   EXPECT_EQ(fmt::format(std::locale(), "{answer}", fmt::arg("answer", 42)),
             "42");
 }
+#  endif
 
 #endif  // FMT_STATIC_THOUSANDS_SEPARATOR

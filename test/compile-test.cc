@@ -111,7 +111,7 @@ TEST(compile_test, format_default) {
   EXPECT_EQ("foo", fmt::format(FMT_COMPILE("{}"), test_formattable()));
   auto t = std::chrono::system_clock::now();
   EXPECT_EQ(fmt::format("{}", t), fmt::format(FMT_COMPILE("{}"), t));
-#  ifdef __cpp_lib_byte
+#  if defined(__cpp_lib_byte) && FMT_USE_RETURN_TYPE_DEDUCTION
   EXPECT_EQ("42", fmt::format(FMT_COMPILE("{}"), std::byte{42}));
 #  endif
 }
@@ -227,20 +227,22 @@ TEST(compile_test, format_to_n) {
   EXPECT_STREQ("2a", buffer);
 }
 
-#ifdef __cpp_lib_bit_cast
+#  ifdef __cpp_lib_bit_cast
 TEST(compile_test, constexpr_formatted_size) {
   FMT_CONSTEXPR20 size_t s1 = fmt::formatted_size(FMT_COMPILE("{0}"), 42);
   EXPECT_EQ(2, s1);
-  FMT_CONSTEXPR20 size_t s2 = fmt::formatted_size(FMT_COMPILE("{0:<4.2f}"), 42.0);
+  FMT_CONSTEXPR20 size_t s2 =
+      fmt::formatted_size(FMT_COMPILE("{0:<4.2f}"), 42.0);
   EXPECT_EQ(5, s2);
 }
-#endif
+#  endif
 
 TEST(compile_test, text_and_arg) {
   EXPECT_EQ(">>>42<<<", fmt::format(FMT_COMPILE(">>>{}<<<"), 42));
   EXPECT_EQ("42!", fmt::format(FMT_COMPILE("{}!"), 42));
 }
 
+#  if FMT_USE_RETURN_TYPE_DEDUCTION
 TEST(compile_test, unknown_format_fallback) {
   EXPECT_EQ(" 42 ",
             fmt::format(FMT_COMPILE("{name:^4}"), fmt::arg("name", 42)));
@@ -257,6 +259,7 @@ TEST(compile_test, unknown_format_fallback) {
   EXPECT_EQ(buffer + 4, result.out);
   EXPECT_EQ(" 42 ", fmt::string_view(buffer, 4));
 }
+#  endif
 
 TEST(compile_test, empty) { EXPECT_EQ("", fmt::format(FMT_COMPILE(""))); }
 

@@ -281,6 +281,15 @@
 #  endif
 #endif
 
+#ifndef FMT_USE_RETURN_TYPE_DEDUCTION
+#  if defined(__cpp_return_type_deduction) && \
+      __cpp_return_type_deduction >= 201304L
+#    define FMT_USE_RETURN_TYPE_DEDUCTION 1
+#  else
+#    define FMT_USE_RETURN_TYPE_DEDUCTION 0
+#  endif
+#endif
+
 // Enable minimal optimizations for more compact code in debug mode.
 FMT_GCC_PRAGMA("GCC push_options")
 #if !defined(__OPTIMIZE__) && !defined(__NVCOMPILER) && !defined(__LCC__)
@@ -1425,20 +1434,6 @@ template <typename Context> struct arg_mapper {
   FMT_CONSTEXPR FMT_INLINE auto map(const char_type* val) -> const char_type* {
     return val;
   }
-  template <typename T,
-            FMT_ENABLE_IF(is_string<T>::value && !std::is_pointer<T>::value &&
-                          std::is_same<char_type, char_t<T>>::value)>
-  FMT_CONSTEXPR FMT_INLINE auto map(const T& val)
-      -> basic_string_view<char_type> {
-    return to_string_view(val);
-  }
-  template <typename T,
-            FMT_ENABLE_IF(is_string<T>::value && !std::is_pointer<T>::value &&
-                          !std::is_same<char_type, char_t<T>>::value)>
-  FMT_CONSTEXPR FMT_INLINE auto map(const T&) -> unformattable_char {
-    return {};
-  }
-
   FMT_CONSTEXPR FMT_INLINE auto map(void* val) -> const void* { return val; }
   FMT_CONSTEXPR FMT_INLINE auto map(const void* val) -> const void* {
     return val;
@@ -1473,18 +1468,39 @@ template <typename Context> struct arg_mapper {
                 std::is_enum<T>::value&& std::is_convertible<T, int>::value &&
                 !has_format_as<T>::value && !has_formatter<T, Context>::value &&
                 !has_fallback_formatter<T, char_type>::value)>
-  FMT_DEPRECATED FMT_CONSTEXPR FMT_INLINE auto map(const T& val)
+  FMT_DEPRECATED FMT_CONSTEXPR FMT_INLINE auto map_udt(const T& val)
       -> decltype(this->map(static_cast<underlying_t<T>>(val))) {
     return map(static_cast<underlying_t<T>>(val));
   }
 #endif
 
-  template <typename T, FMT_ENABLE_IF(has_format_as<T>::value &&
-                                      !has_formatter<T, Context>::value)>
-  FMT_CONSTEXPR FMT_INLINE auto map(const T& val)
-      -> decltype(this->map(format_as(T()))) {
+  template <typename T, typename U = remove_cvref_t<T>,
+            FMT_ENABLE_IF(is_string<U>::value && !std::is_pointer<U>::value &&
+                          std::is_same<char_type, char_t<U>>::value)>
+  FMT_CONSTEXPR FMT_INLINE auto map_udt(T&& val)
+      -> basic_string_view<char_type> {
+    return to_string_view(val);
+  }
+  template <typename T, typename U = remove_cvref_t<T>,
+            FMT_ENABLE_IF(is_string<U>::value && !std::is_pointer<U>::value &&
+                          !std::is_same<char_type, char_t<U>>::value)>
+  FMT_CONSTEXPR FMT_INLINE auto map_udt(T&&) -> unformattable_char {
+    return {};
+  }
+
+#if FMT_USE_RETURN_TYPE_DEDUCTION
+  template <typename T, typename U = remove_cvref_t<T>,
+            FMT_ENABLE_IF(has_format_as<U>::value &&
+                          !has_formatter<U, Context>::value)>
+  FMT_CONSTEXPR FMT_INLINE auto map_udt(T&& val) {
     return map(format_as(val));
   }
+
+  template <typename T>
+  FMT_CONSTEXPR FMT_INLINE auto map_udt(const named_arg<char_type, T>& arg) {
+    return map(arg.value);
+  }
+#endif  // FMT_USE_RETURN_TYPE_DEDUCTION
 
   template <typename T, typename U = remove_cvref_t<T>>
   struct formattable
@@ -1516,15 +1532,20 @@ template <typename Context> struct arg_mapper {
                           !has_format_as<U>::value &&
                           (has_formatter<U, Context>::value ||
                            has_fallback_formatter<U, char_type>::value))>
-  FMT_CONSTEXPR FMT_INLINE auto map(T&& val)
+  FMT_CONSTEXPR FMT_INLINE auto map_udt(T&& val)
       -> decltype(this->do_map(std::forward<T>(val))) {
     return do_map(std::forward<T>(val));
   }
 
-  template <typename T, FMT_ENABLE_IF(is_named_arg<T>::value)>
-  FMT_CONSTEXPR FMT_INLINE auto map(const T& named_arg)
-      -> decltype(this->map(named_arg.value)) {
-    return map(named_arg.value);
+  auto map_udt(...) -> unformattable { return {}; }
+
+  template <typename T, typename U = remove_cvref_t<T>,
+            FMT_ENABLE_IF(std::is_class<U>::value || std::is_enum<U>::value ||
+                          std::is_union<U>::value)>
+  FMT_CONSTEXPR FMT_INLINE auto map(T&& val)
+      -> decltype(this->map_udt(std::forward<T>(val))) {
+    // User-defined types are handled via map_udt to avoid implicit conversions.
+    return map_udt(std::forward<T>(val));
   }
 
   auto map(...) -> unformattable { return {}; }

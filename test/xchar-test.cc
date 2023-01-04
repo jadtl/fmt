@@ -112,33 +112,6 @@ TEST(xchar_test, compile_time_string) {
 #endif
 }
 
-#if FMT_CPLUSPLUS > 201103L
-struct custom_char {
-  int value;
-  custom_char() = default;
-
-  template <typename T>
-  constexpr custom_char(T val) : value(static_cast<int>(val)) {}
-
-  operator char() const {
-    return value <= 0xff ? static_cast<char>(value) : '\0';
-  }
-};
-
-auto to_ascii(custom_char c) -> char { return c; }
-
-FMT_BEGIN_NAMESPACE
-template <> struct is_char<custom_char> : std::true_type {};
-FMT_END_NAMESPACE
-
-TEST(xchar_test, format_custom_char) {
-  const custom_char format[] = {'{', '}', 0};
-  auto result = fmt::format(format, custom_char('x'));
-  EXPECT_EQ(result.size(), 1);
-  EXPECT_EQ(result[0], custom_char('x'));
-}
-#endif
-
 // Convert a char8_t string to std::string. Otherwise GTest will insist on
 // inserting `char8_t` NTBS into a `char` stream which is disabled by P1423.
 template <typename S> std::string from_u8str(const S& str) {
@@ -195,7 +168,7 @@ TEST(format_test, wide_format_to_n) {
   EXPECT_EQ(L"BC x", fmt::wstring_view(buffer, 4));
 }
 
-#if FMT_USE_USER_DEFINED_LITERALS
+#if FMT_USE_USER_DEFINED_LITERALS && FMT_USE_RETURN_TYPE_DEDUCTION
 TEST(xchar_test, named_arg_udl) {
   using namespace fmt::literals;
   auto udl_a =
@@ -206,7 +179,7 @@ TEST(xchar_test, named_arg_udl) {
                   fmt::arg(L"second", L"cad"), fmt::arg(L"third", 99)),
       udl_a);
 }
-#endif  // FMT_USE_USER_DEFINED_LITERALS
+#endif
 
 TEST(xchar_test, print) {
   // Check that the wide print overload compiles.
@@ -237,7 +210,9 @@ auto format_as(unstreamable_enum e) -> int { return e; }
 
 TEST(xchar_test, enum) {
   EXPECT_EQ(L"streamable_enum", fmt::format(L"{}", streamable_enum()));
+#if FMT_USE_RETURN_TYPE_DEDUCTION
   EXPECT_EQ(L"0", fmt::format(L"{}", unstreamable_enum()));
+#endif
 }
 
 struct streamable_and_unformattable {};

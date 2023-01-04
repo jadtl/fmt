@@ -498,6 +498,7 @@ TEST(printf_test, pointer) {
   EXPECT_PRINTF(L"(nil)", L"%p", null_wstr);
 }
 
+#if FMT_USE_RETURN_TYPE_DEDUCTION
 enum test_enum { answer = 42 };
 auto format_as(test_enum e) -> int { return e; }
 
@@ -506,6 +507,7 @@ TEST(printf_test, enum) {
   volatile test_enum volatile_enum = answer;
   EXPECT_PRINTF("42", "%d", volatile_enum);
 }
+#endif
 
 #if FMT_USE_FCNTL
 TEST(printf_test, examples) {
